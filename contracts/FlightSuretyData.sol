@@ -36,7 +36,7 @@ contract FlightSuretyData {
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
-
+    event AirlineRegistered(string airlineName); 
 
     /**
     * @dev Constructor
@@ -176,7 +176,8 @@ contract FlightSuretyData {
              newState = AirlineState.RegisteredNotFunded; 
         }       
 
-        airlines[airlineAddress] = Airline(airlineName, newState, getRequiredVotes(), 0); 
+        airlines[airlineAddress] = Airline(airlineName, newState, getRequiredVotes(), 0);
+        emit AirlineRegistered(airlineName); 
     }
 
 

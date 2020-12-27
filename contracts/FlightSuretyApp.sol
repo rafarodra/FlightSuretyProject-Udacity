@@ -35,6 +35,7 @@ contract FlightSuretyApp {
     }
     mapping(bytes32 => Flight) private flights;
 
+    FlightSuretyData flightSuretyData; 
  
     /********************************************************************************************/
     /*                                       FUNCTION MODIFIERS                                 */
@@ -72,13 +73,9 @@ contract FlightSuretyApp {
     * @dev Contract constructor
     *
     */
-    constructor
-                                (
-                                ) 
-                                public 
-    {
+    constructor (address dataContractAddress) public {
         contractOwner = msg.sender;
-        
+        flightSuretyData = FlightSuretyData(dataContractAddress); 
     }
 
     /********************************************************************************************/
@@ -336,4 +333,12 @@ contract FlightSuretyApp {
 
 // endregion
 
-}   
+}
+
+// region Data Contract Interface
+
+    abstract contract FlightSuretyData{
+        function registerAirline(string memory airlineName, address airlineAddress) external virtual; 
+    }
+
+// endregion
