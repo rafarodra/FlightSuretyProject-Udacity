@@ -1,6 +1,7 @@
-pragma solidity ^0.4.25;
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.6.0 <0.8.0;
 
-import "../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
 
 contract FlightSuretyData {
     using SafeMath for uint256;
@@ -11,6 +12,26 @@ contract FlightSuretyData {
 
     address private contractOwner;                                      // Account used to deploy contract
     bool private operational = true;                                    // Blocks all state changes throughout the contract if false
+    uint private totalRegisteredAirlines = 0; 
+
+    //CONSTS
+    uint8 private constant FOUNDING_AIRLINES = 4;
+
+    enum AirlineState 
+    { 
+        PendingApproval,  // 0
+        RegisteredNotFunded,  // 1
+        RegisteredFunded //2
+    }
+
+    struct Airline {
+        string name;
+        AirlineState state;
+        uint256 minRequiredVotes; 
+        uint256 positiveReceivedVotes; 
+    }
+
+    mapping(address => Airline) private airlines;
 
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
@@ -56,6 +77,15 @@ contract FlightSuretyData {
         _;
     }
 
+    /**
+    * @dev Modifier that requires the airline to be an active member
+    */
+    modifier requireActiveAirline()
+    {
+        require(isAirlineActive(msg.sender), "Caller is not an active airline");
+        _;
+    }
+
     /********************************************************************************************/
     /*                                       UTILITY FUNCTIONS                                  */
     /********************************************************************************************/
@@ -73,6 +103,23 @@ contract FlightSuretyData {
         return operational;
     }
 
+    /**
+    * @dev Get airline status
+    *
+    * @return A bool stating wheter the airline is an active member 
+    */
+    function isAirlineActive(address addr) 
+                            public 
+                            view 
+                            returns(bool) 
+    {
+        bool retval = false; 
+        if(airlines[addr].state == AirlineState.RegisteredFunded)
+        {
+            retval = true;
+        }
+        return retval; 
+    }
 
     /**
     * @dev Sets contract operations on/off
@@ -85,8 +132,24 @@ contract FlightSuretyData {
                             ) 
                             external
                             requireContractOwner 
+                            requireIsOperational
     {
         operational = mode;
+    }
+
+    /**
+    * @dev Gets the required votes to be accepted as a registered member
+    *
+    * @return A uint256 with the minimum required votes 
+    */
+    function getRequiredVotes() public view returns(uint256){
+        if(totalRegisteredAirlines <= FOUNDING_AIRLINES){
+            return 0; 
+        } 
+        else{
+            return totalRegisteredAirlines % 2; 
+        }
+
     }
 
     /********************************************************************************************/
@@ -99,11 +162,21 @@ contract FlightSuretyData {
     *
     */   
     function registerAirline
-                            (   
+                            (string memory airlineName,
+                            address airlineAddress
                             )
                             external
-                            pure
+                            requireIsOperational
+                            requireActiveAirline
+
     {
+        AirlineState newState = AirlineState.PendingApproval; 
+
+        if(totalRegisteredAirlines <= FOUNDING_AIRLINES){
+             newState = AirlineState.RegisteredNotFunded; 
+        }       
+
+        airlines[airlineAddress] = Airline(airlineName, newState, getRequiredVotes(), 0); 
     }
 
 
@@ -174,9 +247,9 @@ contract FlightSuretyData {
     * @dev Fallback function for funding smart contract.
     *
     */
-    function() 
+    fallback() 
                             external 
-                            payable 
+                            payable
     {
         fund();
     }
