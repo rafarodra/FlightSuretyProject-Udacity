@@ -53,7 +53,7 @@ contract FlightSuretyApp {
     {
          // Modify to call data contract's status
         require(true, "Contract is currently not operational");  
-        _;  // All modifiers require an "_" which indicates where the function body will be added
+        _;
     }
 
     /**
@@ -73,9 +73,12 @@ contract FlightSuretyApp {
     * @dev Contract constructor
     *
     */
-    constructor (address dataContractAddress) public {
+    constructor (address dataContractAddress, string memory airlineName, address airlineAddress) public {
         contractOwner = msg.sender;
-        flightSuretyData = FlightSuretyData(dataContractAddress); 
+        flightSuretyData = FlightSuretyData(dataContractAddress);
+        registerAirline(airlineName, airlineAddress);
+        //flightSuretyData.registerAirline(airlineName, airlineAddress);
+
     }
 
     /********************************************************************************************/
@@ -100,13 +103,15 @@ contract FlightSuretyApp {
     *
     */   
     function registerAirline
-                            (   
+                            (
+                                string memory airlineName, 
+                                address airlineAddress
                             )
-                            external
-                            pure
-                            returns(bool success, uint256 votes)
+                            public
+                            //returns(bool success, uint256 votes)
     {
-        return (success, 0);
+        flightSuretyData.registerAirline(airlineName, airlineAddress);
+        //return (success, 0);
     }
 
 
@@ -337,8 +342,8 @@ contract FlightSuretyApp {
 
 // region Data Contract Interface
 
-    abstract contract FlightSuretyData{
-        function registerAirline(string memory airlineName, address airlineAddress) external virtual; 
-    }
+    contract FlightSuretyData{
+        function registerAirline(string memory airlineName, address airlineAddress) external {} 
+    }   
 
 // endregion

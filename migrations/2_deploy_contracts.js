@@ -7,17 +7,22 @@ module.exports = function(deployer) {
     let firstAirline = '0xf17f52151EbEF6C7334FAD080c5704D77216b732';
     deployer.deploy(FlightSuretyData)
     .then(() => {
-        return deployer.deploy(FlightSuretyApp)
+        //console.log(FlightSuretyData.address);
+        return deployer.deploy(FlightSuretyApp, FlightSuretyData.address, 'UdacityAirlines', firstAirline)
                 .then(() => {
                     let config = {
                         localhost: {
-                            url: 'http://localhost:8545',
+                            url: 'http://localhost:9545',
                             dataAddress: FlightSuretyData.address,
                             appAddress: FlightSuretyApp.address
                         }
                     }
                     fs.writeFileSync(__dirname + '/../src/dapp/config.json',JSON.stringify(config, null, '\t'), 'utf-8');
                     fs.writeFileSync(__dirname + '/../src/server/config.json',JSON.stringify(config, null, '\t'), 'utf-8');
+
+                    //FlightSuretyApp.
+                    //Adds first airline
+                    //FlightSuretyApp.registerAirline('UdacityAirlines', firstAirline, {from:FlightSuretyApp.address}); 
                 });
     });
 }

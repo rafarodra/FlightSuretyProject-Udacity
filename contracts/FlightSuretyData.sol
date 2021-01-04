@@ -42,11 +42,7 @@ contract FlightSuretyData {
     * @dev Constructor
     *      The deploying account becomes contractOwner
     */
-    constructor
-                                (
-                                ) 
-                                public 
-    {
+    constructor() public {
         contractOwner = msg.sender;
     }
 
@@ -82,7 +78,9 @@ contract FlightSuretyData {
     */
     modifier requireActiveAirline()
     {
-        require(isAirlineActive(msg.sender), "Caller is not an active airline");
+        if(totalRegisteredAirlines > 0){
+            require(isAirlineActive(msg.sender), "Caller is not an active airline");
+        }        
         _;
     }
 
@@ -161,15 +159,7 @@ contract FlightSuretyData {
     *      Can only be called from FlightSuretyApp contract
     *
     */   
-    function registerAirline
-                            (string memory airlineName,
-                            address airlineAddress
-                            )
-                            external
-                            requireIsOperational
-                            requireActiveAirline
-
-    {
+    function registerAirline(string memory airlineName, address airlineAddress) external requireIsOperational requireActiveAirline {
         AirlineState newState = AirlineState.PendingApproval; 
 
         if(totalRegisteredAirlines <= FOUNDING_AIRLINES){
@@ -177,6 +167,7 @@ contract FlightSuretyData {
         }       
 
         airlines[airlineAddress] = Airline(airlineName, newState, getRequiredVotes(), 0);
+        totalRegisteredAirlines = totalRegisteredAirlines + 1;
         emit AirlineRegistered(airlineName); 
     }
 
