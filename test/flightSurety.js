@@ -95,7 +95,7 @@ contract('Flight Surety Tests', async (accounts) => {
     
     // ARRANGE
     let newAirline = accounts[2];
-    let newAirlineName = 'Udacity #2'; 
+    let newAirlineName = 'Udacity #2';
 
     // ACT
     try {
