@@ -52,7 +52,8 @@ contract FlightSuretyApp {
     modifier requireIsOperational() 
     {
          // Modify to call data contract's status
-        require(true, "Contract is currently not operational");  
+         
+        require(isOperational(), "App Contract is currently not operational");  
         _;
     }
 
@@ -87,10 +88,11 @@ contract FlightSuretyApp {
 
     function isOperational() 
                             public 
-                            pure 
+                            view 
                             returns(bool) 
     {
-        return true;  // Modify to call data contract's status
+        bool _isOperational = flightSuretyData.isOperational();
+        return _isOperational;
     }
 
     /********************************************************************************************/
@@ -108,10 +110,31 @@ contract FlightSuretyApp {
                                 address airlineAddress
                             )
                             public
-                            //returns(bool success, uint256 votes)
+                            requireIsOperational
+                            returns(bool success, uint256 votes)
     {
-        flightSuretyData.registerAirline(airlineName, airlineAddress);
-        //return (success, 0);
+        try flightSuretyData.registerAirline(airlineName, airlineAddress) {
+            success = true;
+        }
+        catch (bytes memory _err){
+            success = false;
+        }
+        return (success, 0);
+    }
+
+    /**
+    * @dev Retrieves the current status of a given airline
+    *
+    */  
+    function fetchAirlineStatus(address airlineAddress) 
+                                        external 
+                                        view 
+                                        requireIsOperational 
+                                        returns(string memory name, uint256 state, uint256 minRequiredVotes, uint256 positiveReceivedVotes) 
+    {
+        (string memory _name, uint256 _state, uint256 _minRequiredVotes, uint256 _positiveReceivedVotes) = flightSuretyData.fetchAirlineStatus(airlineAddress);
+        
+        return(_name, _state, _minRequiredVotes, _positiveReceivedVotes); 
     }
 
 
@@ -278,7 +301,6 @@ contract FlightSuretyApp {
         }
     }
 
-
     function getFlightKey
                         (
                             address airline,
@@ -344,6 +366,8 @@ contract FlightSuretyApp {
 
     contract FlightSuretyData{
         function registerAirline(string memory airlineName, address airlineAddress) external {} 
+        function fetchAirlineStatus(address airlineAddress) external view returns(string memory name, uint256 state, uint256 minRequiredVotes, uint256 positiveReceivedVotes) {}
+        function isOperational() public view returns(bool) {} 
     }   
 
 // endregion

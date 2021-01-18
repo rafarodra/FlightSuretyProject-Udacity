@@ -36,7 +36,9 @@ contract FlightSuretyData {
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
-    event AirlineRegistered(string airlineName); 
+    event AirlineRegistered(string airlineName);
+    event OperationalStatusChanged(bool status, address requestor);
+    event requiredActiveAirline(uint256 totalRegistered); 
 
     /**
     * @dev Constructor
@@ -60,8 +62,8 @@ contract FlightSuretyData {
     */
     modifier requireIsOperational() 
     {
-        require(operational, "Contract is currently not operational");
-        _;  // All modifiers require an "_" which indicates where the function body will be added
+        require(isOperational(), "Data Contract is currently not operational");
+        _; 
     }
 
     /**
@@ -79,6 +81,7 @@ contract FlightSuretyData {
     modifier requireActiveAirline()
     {
         if(totalRegisteredAirlines > 0){
+            emit requiredActiveAirline(totalRegisteredAirlines); 
             require(isAirlineActive(msg.sender), "Caller is not an active airline");
         }        
         _;
@@ -129,10 +132,10 @@ contract FlightSuretyData {
                                 bool mode
                             ) 
                             external
-                            requireContractOwner 
-                            requireIsOperational
+                            requireContractOwner
     {
         operational = mode;
+        emit OperationalStatusChanged(operational, msg.sender); 
     }
 
     /**
@@ -140,7 +143,7 @@ contract FlightSuretyData {
     *
     * @return A uint256 with the minimum required votes 
     */
-    function getRequiredVotes() public view returns(uint256){
+    function getRequiredVotes() private view returns(uint256){
         if(totalRegisteredAirlines <= FOUNDING_AIRLINES){
             return 0; 
         } 
@@ -159,7 +162,10 @@ contract FlightSuretyData {
     *      Can only be called from FlightSuretyApp contract
     *
     */   
-    function registerAirline(string memory airlineName, address airlineAddress) external requireIsOperational requireActiveAirline {
+    function registerAirline(string memory airlineName, address airlineAddress) 
+                                                                    external 
+                                                                    requireIsOperational 
+                                                                    requireActiveAirline {
         AirlineState newState = AirlineState.PendingApproval; 
 
         if(totalRegisteredAirlines <= FOUNDING_AIRLINES){
@@ -169,6 +175,20 @@ contract FlightSuretyData {
         airlines[airlineAddress] = Airline(airlineName, newState, getRequiredVotes(), 0);
         totalRegisteredAirlines = totalRegisteredAirlines + 1;
         emit AirlineRegistered(airlineName); 
+    }
+
+    /**
+    * @dev Retrieves the current status of a given airline
+    *
+    */  
+    function fetchAirlineStatus(address airlineAddress) 
+                                        external 
+                                        view 
+                                        requireIsOperational 
+                                        returns(string memory name, uint256 state, uint256 minRequiredVotes, uint256 positiveReceivedVotes) 
+    {
+        FlightSuretyData.Airline memory airline = airlines[airlineAddress]; 
+        return(airline.name, uint256(airline.state), airline.minRequiredVotes, airline.positiveReceivedVotes); 
     }
 
 
