@@ -10,6 +10,8 @@ contract('Flight Surety Tests', async (accounts) => {
     //await config.flightSuretyData.authorizeCaller(config.flightSuretyApp.address);
   });
 
+  
+
   /****************************************************************************************/
   /* Operations and Settings                                                              */
   /****************************************************************************************/
@@ -77,17 +79,19 @@ contract('Flight Surety Tests', async (accounts) => {
     
     try 
     {   
-        result = await config.flightSuretyApp.fetchAirlineStatus(config.firstAirline);       
+        result = await config.flightSuretyApp.fetchAirlineStatus(config.firstAirline);     
     }
     catch(e) {
         airlineFound = false;
     }
 
     assert.equal(airlineFound, true, "Error: Airline not found or error");
-    assert.equal(result[0], config.firstAirlineName, 'Error: First airline name does not match');
-    assert.equal(result[1], 1, 'Error: First airline state does not match RegistereNotFunded');
-    assert.equal(result[2], 0, 'Error: First airline minimum required votes do not match');
-    assert.equal(result[3], 0, 'ErError: First airline positive received votes do not match'); 
+    assert.equal(result[0], config.firstAirlineName, 'Error: First airline name does not match'); //name
+    assert.equal(result[1], 1, 'Error: First airline state does not match Registered'); //state
+    assert.equal(result[2], false, 'Error: First airline state does not match Registered'); //isfunded
+    assert.equal(result[3], 0, 'Error: First airline minimum required votes do not match'); //minRequiredVotes
+    assert.equal(result[4], 0, 'ErError: First airline positive received votes do not match'); //positiveReceivedVotes
+    assert.equal(result[5], 0, 'ErError: First airline balance is not zero'); //balance   
 });
 
   it('(airline) cannot register an Airline using registerAirline() if it is not funded', async () => {
@@ -136,7 +140,7 @@ contract('Flight Surety Tests', async (accounts) => {
     assert.equal(airlineStatus.isFunded, true, 'Error: Airline did not change to the correct IsFunded State');
   });
 
- /* it('(airline) can register an Airline using registerAirline() if it is funded', async () => {
+  it('(airline) can register an Airline using registerAirline() if it is funded', async () => {
     
     // ARRANGE
     let newAirline = accounts[3];
@@ -144,19 +148,30 @@ contract('Flight Surety Tests', async (accounts) => {
 
     // ACT
     try {
-        let fundResult = config.flightSuretyApp.fundAirline({from: config.firstAirline});
-        if(fundResult){
-          
-        } 
-
-        
+      let txn = await config.flightSuretyApp.registerAirline(newAirlineName, newAirline, {from: config.firstAirline});
+      console.log(txn); 
     }
     catch(e) {
         console.log(e); 
     }
     let result = await config.flightSuretyApp.fetchAirlineStatus(newAirline); 
-    
+  
     // ASSERT
-    assert.equal(result[0], '', 'Error: Airline was created using unfunded airline');
-  });*/
+    assert.equal(result[0], newAirlineName, 'Error: New airline was not created'); //Airline Name
+    
+    //Airline State
+    if(result[3] > 0){
+      //not a founding airline, state should be 'Pending Approval' by default
+      assert.equal(result[1], 0, 'Error: New airline state is not correct - Expected PendingApproval');
+    }
+    else{
+      // founding airline and state should be 'Registered' by default
+      assert.equal(result[1], 1, 'Error: New airline state is not correct - Expected Registered');
+    } 
+
+    assert.equal(result[2], false, 'Error: New airline shows as funded but is was just created'); //Airline is funded
+    assert.equal(result[5], 0, 'Error: New airline was not created'); //Airline Balance
+   
+  });
+
 });
