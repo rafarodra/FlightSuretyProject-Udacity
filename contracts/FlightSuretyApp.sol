@@ -25,8 +25,7 @@ contract FlightSuretyApp {
     uint8 private constant STATUS_CODE_LATE_TECHNICAL = 40;
     uint8 private constant STATUS_CODE_LATE_OTHER = 50;
 
-    address private _contractOwner;          // Account used to deploy contract
-    address private _dataContract; 
+    address private contractOwner;          // Account used to deploy contract
 
     struct Flight {
         bool isRegistered;
@@ -37,12 +36,6 @@ contract FlightSuretyApp {
     mapping(bytes32 => Flight) private flights;
 
     FlightSuretyData flightSuretyData; 
-
-     /********************************************************************************************/
-    /*                                       EVENT DEFINITIONS                                  */
-    /********************************************************************************************/
-    event AirlineFunded(address airline, uint256 amount, uint256 olbContractBalance, uint256 newContractBalance); 
-
  
     /********************************************************************************************/
     /*                                       FUNCTION MODIFIERS                                 */
@@ -69,7 +62,7 @@ contract FlightSuretyApp {
     */
     modifier requireContractOwner()
     {
-        require(msg.sender == _contractOwner, "Caller is not contract owner");
+        require(msg.sender == contractOwner, "Caller is not contract owner");
         _;
     }
 
@@ -82,10 +75,11 @@ contract FlightSuretyApp {
     *
     */
     constructor (address dataContractAddress, string memory airlineName, address airlineAddress) public {
-        _contractOwner = msg.sender;
-        _dataContract = dataContractAddress; 
-        flightSuretyData = FlightSuretyData(_dataContract);
-        registerAirline(airlineName, airlineAddress);    
+        contractOwner = msg.sender;
+        flightSuretyData = FlightSuretyData(dataContractAddress);
+        registerAirline(airlineName, airlineAddress);
+        //flightSuretyData.registerAirline(airlineName, airlineAddress);
+
     }
 
     /********************************************************************************************/
@@ -119,15 +113,13 @@ contract FlightSuretyApp {
                             requireIsOperational
                             returns(bool success, uint256 votes)
     {
-        bool _success; 
-
         try flightSuretyData.registerAirline(airlineName, airlineAddress) {
-            _success = true;
+            success = true;
         }
         catch (bytes memory _err){
-            _success = false;
+            success = false;
         }
-        return (_success, 0);
+        return (success, 0);
     }
 
     /**
@@ -138,41 +130,13 @@ contract FlightSuretyApp {
                                         external 
                                         view 
                                         requireIsOperational 
-                                        returns(string memory name, uint256 state, bool isFunded, uint256 minRequiredVotes, uint256 positiveReceivedVotes, uint256 balance) 
+                                        returns(string memory name, uint256 state, uint256 minRequiredVotes, uint256 positiveReceivedVotes) 
     {
-        (string memory _name, uint256 _state, bool _isFunded, uint256 _minRequiredVotes, uint256 _positiveReceivedVotes, uint _balance) = flightSuretyData.fetchAirlineStatus(airlineAddress);
+        (string memory _name, uint256 _state, uint256 _minRequiredVotes, uint256 _positiveReceivedVotes) = flightSuretyData.fetchAirlineStatus(airlineAddress);
         
-        return(_name, _state, _isFunded, _minRequiredVotes, _positiveReceivedVotes, _balance); 
+        return(_name, _state, _minRequiredVotes, _positiveReceivedVotes); 
     }
 
-    /**
-    * @dev Send ether to a given airline to become an active member
-    *
-    */  
-    function fundAirline()
-                    external
-                    payable
-                    requireIsOperational
-                    returns(bool)
-    {
-        bool _success; 
-
-        try flightSuretyData.fundAirline{value: msg.value}(msg.sender) {
-            _success = true;
-        }
-        catch (bytes memory _err){
-            _success = false;
-        }
-        return (_success);
-    } 
-
-    function getContractBalance() 
-                                external 
-                                view
-                                returns (uint256){
-
-        return flightSuretyData.getContractBalance();  
-    }
 
    /**
     * @dev Register a future flight for insuring.
@@ -402,10 +366,8 @@ contract FlightSuretyApp {
 
     contract FlightSuretyData{
         function registerAirline(string memory airlineName, address airlineAddress) external {} 
-        function fetchAirlineStatus(address airlineAddress) external view returns(string memory name, uint256 state, bool isFunded, uint256 minRequiredVotes, uint256 positiveReceivedVotes, uint256 balance) {}
+        function fetchAirlineStatus(address airlineAddress) external view returns(string memory name, uint256 state, uint256 minRequiredVotes, uint256 positiveReceivedVotes) {}
         function isOperational() public view returns(bool) {} 
-        function getContractBalance() external view returns (uint256) {}
-        function fundAirline(address airlineAddress) external payable {}
     }   
 
 // endregion

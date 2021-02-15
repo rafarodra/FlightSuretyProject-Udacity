@@ -16,21 +16,19 @@ contract FlightSuretyData {
 
     //CONSTS
     uint8 private constant FOUNDING_AIRLINES = 4;
-    uint256 private constant MEMBERSHIP_FEE = 10 ether;
 
     enum AirlineState 
     { 
         PendingApproval,  // 0
-        Registered //1
+        RegisteredNotFunded,  // 1
+        RegisteredFunded //2
     }
 
     struct Airline {
         string name;
         AirlineState state;
-        bool isFunded; 
         uint256 minRequiredVotes; 
-        uint256 positiveReceivedVotes;
-        uint256 balance; 
+        uint256 positiveReceivedVotes; 
     }
 
     mapping(address => Airline) private airlines;
@@ -40,7 +38,7 @@ contract FlightSuretyData {
     /********************************************************************************************/
     event AirlineRegistered(string airlineName);
     event OperationalStatusChanged(bool status, address requestor);
-    event AirlineFunded(address airline, uint256 amount, uint256 oldBalace, uint256 newBalance); 
+    event requiredActiveAirline(uint256 totalRegistered); 
 
     /**
     * @dev Constructor
@@ -83,17 +81,9 @@ contract FlightSuretyData {
     modifier requireActiveAirline()
     {
         if(totalRegisteredAirlines > 0){
+            emit requiredActiveAirline(totalRegisteredAirlines); 
             require(isAirlineActive(msg.sender), "Caller is not an active airline");
         }        
-        _;
-    }
-
-    /**
-    * @dev Modifier that requires the minimum amount is meet in order to activate an airline
-    */
-    modifier requireMinimumFee()
-    {
-        require(msg.value >= MEMBERSHIP_FEE, "Amount sent is less than the membership fee");
         _;
     }
 
@@ -119,13 +109,13 @@ contract FlightSuretyData {
     *
     * @return A bool stating wheter the airline is an active member 
     */
-    function isAirlineActive(address airlineAddress) 
+    function isAirlineActive(address addr) 
                             public 
                             view 
                             returns(bool) 
     {
         bool retval = false; 
-        if((airlines[airlineAddress].isFunded) && (airlines[airlineAddress].state == AirlineState.Registered))
+        if(airlines[addr].state == AirlineState.RegisteredFunded)
         {
             retval = true;
         }
@@ -158,16 +148,9 @@ contract FlightSuretyData {
             return 0; 
         } 
         else{
-            return totalRegisteredAirlines.div(2); 
+            return totalRegisteredAirlines % 2; 
         }
-    }
 
-    function getContractBalance() 
-                                external 
-                                view
-                                returns (uint256)
-                                {
-        return address(this).balance; 
     }
 
     /********************************************************************************************/
@@ -182,19 +165,15 @@ contract FlightSuretyData {
     function registerAirline(string memory airlineName, address airlineAddress) 
                                                                     external 
                                                                     requireIsOperational 
-                                                                    requireActiveAirline 
-    {
-        AirlineState newState;
+                                                                    requireActiveAirline {
+        AirlineState newState = AirlineState.PendingApproval; 
 
         if(totalRegisteredAirlines <= FOUNDING_AIRLINES){
-             newState = AirlineState.Registered; 
-        }
-        else{
-            newState = AirlineState.PendingApproval;
-        }
+             newState = AirlineState.RegisteredNotFunded; 
+        }       
 
-        airlines[airlineAddress] = Airline(airlineName, newState, false, getRequiredVotes(), 0, 0);
-        totalRegisteredAirlines = totalRegisteredAirlines.add(1);
+        airlines[airlineAddress] = Airline(airlineName, newState, getRequiredVotes(), 0);
+        totalRegisteredAirlines = totalRegisteredAirlines + 1;
         emit AirlineRegistered(airlineName); 
     }
 
@@ -206,30 +185,12 @@ contract FlightSuretyData {
                                         external 
                                         view 
                                         requireIsOperational 
-                                        returns(
-                                            string memory name, 
-                                            uint256 state, 
-                                            bool isFunded, 
-                                            uint256 minRequiredVotes, 
-                                            uint256 positiveReceivedVotes,
-                                            uint256 balance
-                                            ) 
+                                        returns(string memory name, uint256 state, uint256 minRequiredVotes, uint256 positiveReceivedVotes) 
     {
         FlightSuretyData.Airline memory airline = airlines[airlineAddress]; 
-        return(airline.name, uint256(airline.state), airline.isFunded, airline.minRequiredVotes, airline.positiveReceivedVotes, airline.balance); 
+        return(airline.name, uint256(airline.state), airline.minRequiredVotes, airline.positiveReceivedVotes); 
     }
 
-    function fundAirline(address airlineAddress)
-                    external
-                    payable
-                    requireIsOperational
-                    requireMinimumFee                    
-    {
-        uint256 oldBalance = airlines[airlineAddress].balance;  
-        airlines[airlineAddress].balance = airlines[airlineAddress].balance.add(msg.value);
-        airlines[airlineAddress].isFunded = true;        
-        emit AirlineFunded(airlineAddress, msg.value, oldBalance, airlines[airlineAddress].balance);
-    } 
 
    /**
     * @dev Buy insurance for a flight
@@ -268,7 +229,19 @@ contract FlightSuretyData {
     {
     }
 
-   
+   /**
+    * @dev Initial funding for the insurance. Unless there are too many delayed flights
+    *      resulting in insurance payouts, the contract should be self-sustaining
+    *
+    */   
+    function fund
+                            (   
+                            )
+                            public
+                            payable
+    {
+    }
+
     function getFlightKey
                         (
                             address airline,
@@ -289,9 +262,8 @@ contract FlightSuretyData {
     fallback() 
                             external 
                             payable
-                            requireIsOperational
     {
-        
+        fund();
     }
 
 
