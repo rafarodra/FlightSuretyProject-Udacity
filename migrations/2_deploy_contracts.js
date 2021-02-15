@@ -7,8 +7,7 @@ module.exports = function(deployer) {
     let firstAirline = '0xf17f52151EbEF6C7334FAD080c5704D77216b732';
     deployer.deploy(FlightSuretyData)
     .then(() => {
-        //console.log(FlightSuretyData.address);
-        return deployer.deploy(FlightSuretyApp, FlightSuretyData.address, 'UdacityAirlines', firstAirline)
+         return deployer.deploy(FlightSuretyApp, FlightSuretyData.address, 'DEPLOY - UdacityAirlines', firstAirline)
                 .then(() => {
                     let config = {
                         localhost: {
@@ -19,10 +18,6 @@ module.exports = function(deployer) {
                     }
                     fs.writeFileSync(__dirname + '/../src/dapp/config.json',JSON.stringify(config, null, '\t'), 'utf-8');
                     fs.writeFileSync(__dirname + '/../src/server/config.json',JSON.stringify(config, null, '\t'), 'utf-8');
-
-                    //FlightSuretyApp.
-                    //Adds first airline
-                    //FlightSuretyApp.registerAirline('UdacityAirlines', firstAirline, {from:FlightSuretyApp.address}); 
                 });
     });
 }

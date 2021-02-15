@@ -74,18 +74,17 @@ contract('Flight Surety Tests', async (accounts) => {
 
     let airlineFound = true;
     var result; 
-
+    
     try 
-    {        
-        result = await config.flightSuretyApp.fetchAirlineStatus(config.firstAirline); 
+    {   
+        result = await config.flightSuretyApp.fetchAirlineStatus(config.firstAirline);       
     }
-    catch(e) {        
-        console.log(e); 
+    catch(e) {
         airlineFound = false;
     }
 
     assert.equal(airlineFound, true, "Error: Airline not found or error");
-    assert.equal(result[0], 'Udacity Airlines', 'Error: First airline name does not match');
+    assert.equal(result[0], config.firstAirlineName, 'Error: First airline name does not match');
     assert.equal(result[1], 1, 'Error: First airline state does not match RegistereNotFunded');
     assert.equal(result[2], 0, 'Error: First airline minimum required votes do not match');
     assert.equal(result[3], 0, 'ErError: First airline positive received votes do not match'); 
@@ -110,5 +109,54 @@ contract('Flight Surety Tests', async (accounts) => {
     assert.equal(result[0], '', 'Error: Airline was created using unfunded airline');
   });
  
+  it('(airline) can fund an airline', async () => {
+    
+    // ARRANGE
+    var txn; ;
+    var airlineStatus;
+    var oldContractBalance;
+    var newContractBalance;
+    const payment = web3.utils.toWei('10', 'ether'); 
 
+    // ACT
+    try {
+      oldContractBalance = await config.flightSuretyApp.getContractBalance.call();
+      txn = await config.flightSuretyApp.fundAirline({from: config.firstAirline, value: payment});
+      newContractBalance = await config.flightSuretyApp.getContractBalance.call(); 
+      
+      airlineStatus = await config.flightSuretyApp.fetchAirlineStatus(config.firstAirline);         
+    }
+    catch(e) {
+        console.log(e); 
+    }
+      
+    // ASSERT
+    assert.equal(oldContractBalance < newContractBalance, true, 'Error: Balance of the contract did not change'); 
+    assert.equal(txn.logs[0].event, 'AirlineFunded', 'Error: Airline was not funded correctly');
+    assert.equal(airlineStatus.isFunded, true, 'Error: Airline did not change to the correct IsFunded State');
+  });
+
+ /* it('(airline) can register an Airline using registerAirline() if it is funded', async () => {
+    
+    // ARRANGE
+    let newAirline = accounts[3];
+    let newAirlineName = 'Udacity #3';
+
+    // ACT
+    try {
+        let fundResult = config.flightSuretyApp.fundAirline({from: config.firstAirline});
+        if(fundResult){
+          
+        } 
+
+        
+    }
+    catch(e) {
+        console.log(e); 
+    }
+    let result = await config.flightSuretyApp.fetchAirlineStatus(newAirline); 
+    
+    // ASSERT
+    assert.equal(result[0], '', 'Error: Airline was created using unfunded airline');
+  });*/
 });
