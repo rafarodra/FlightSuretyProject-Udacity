@@ -44,6 +44,6 @@
     "webpack-node-externals": "1.7.2"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^3.3.0"
+    "@openzeppelin/contracts": "^3.4.0"
   }
 }

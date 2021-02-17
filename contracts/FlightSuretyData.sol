@@ -13,6 +13,7 @@ contract FlightSuretyData {
     address private contractOwner;                                      // Account used to deploy contract
     bool private operational = true;                                    // Blocks all state changes throughout the contract if false
     uint private totalRegisteredAirlines = 0; 
+    address authorizedCaller; 
 
     //CONSTS
     uint8 private constant FOUNDING_AIRLINES = 4;
@@ -41,6 +42,7 @@ contract FlightSuretyData {
     event AirlineRegistered(string airlineName);
     event OperationalStatusChanged(bool status, address requestor);
     event AirlineFunded(address airline, uint256 amount, uint256 oldBalace, uint256 newBalance); 
+    event dummyEvent(string text); 
 
     /**
     * @dev Constructor
@@ -80,10 +82,10 @@ contract FlightSuretyData {
     /**
     * @dev Modifier that requires the airline to be an active member
     */
-    modifier requireActiveAirline()
+    modifier requireActiveAirline(address addr)
     {
-        if(totalRegisteredAirlines > 0){
-            require(isAirlineActive(msg.sender), "Caller is not an active airline");
+        if(totalRegisteredAirlines > 0){           
+            require(isAirlineActive(addr), "Caller is not an active airline");            
         }        
         _;
     }
@@ -154,7 +156,7 @@ contract FlightSuretyData {
     * @return A uint256 with the minimum required votes 
     */
     function getRequiredVotes() private view returns(uint256){
-        if(totalRegisteredAirlines <= FOUNDING_AIRLINES){
+        if(totalRegisteredAirlines < FOUNDING_AIRLINES){
             return 0; 
         } 
         else{
@@ -170,6 +172,14 @@ contract FlightSuretyData {
         return address(this).balance; 
     }
 
+    function getTotalRegisteredAirlines()
+                                external
+                                view
+                                returns(uint256){
+        
+        return totalRegisteredAirlines; 
+    }
+
     /********************************************************************************************/
     /*                                     SMART CONTRACT FUNCTIONS                             */
     /********************************************************************************************/
@@ -179,22 +189,22 @@ contract FlightSuretyData {
     *      Can only be called from FlightSuretyApp contract
     *
     */   
-    function registerAirline(string memory airlineName, address airlineAddress) 
+    function registerAirline(string memory airlineName, address airlineAddress, address requestorAddress) 
                                                                     external 
                                                                     requireIsOperational 
-                                                                    requireActiveAirline 
+                                                                    requireActiveAirline(requestorAddress) 
     {
         AirlineState newState;
 
-        if(totalRegisteredAirlines <= FOUNDING_AIRLINES){
-             newState = AirlineState.Registered; 
+        if(totalRegisteredAirlines < FOUNDING_AIRLINES){
+             newState = AirlineState.Registered;
+             totalRegisteredAirlines = totalRegisteredAirlines.add(1);
         }
         else{
             newState = AirlineState.PendingApproval;
         }
 
-        airlines[airlineAddress] = Airline(airlineName, newState, false, getRequiredVotes(), 0, 0);
-        totalRegisteredAirlines = totalRegisteredAirlines.add(1);
+        airlines[airlineAddress] = Airline(airlineName, newState, false, getRequiredVotes(), 0, 0);        
         emit AirlineRegistered(airlineName); 
     }
 
@@ -219,6 +229,10 @@ contract FlightSuretyData {
         return(airline.name, uint256(airline.state), airline.isFunded, airline.minRequiredVotes, airline.positiveReceivedVotes, airline.balance); 
     }
 
+    /**
+    * @dev Funds a given airline and tranfers the funds to the contract's balance
+    *
+    */ 
     function fundAirline(address airlineAddress)
                     external
                     payable
@@ -230,6 +244,25 @@ contract FlightSuretyData {
         airlines[airlineAddress].isFunded = true;        
         emit AirlineFunded(airlineAddress, msg.value, oldBalance, airlines[airlineAddress].balance);
     } 
+
+    /**
+    * @dev This function is to submit voting to approve a given airline
+    *
+    */ 
+    function approveAirline(address airlineToApprove, address requestorAddress)
+                                    external
+                                    requireIsOperational
+                                    requireActiveAirline(requestorAddress)
+    {
+        require(airlineToApprove != requestorAddress, "Votes cannot be emited by the same candidate airline"); 
+        airlines[airlineToApprove].positiveReceivedVotes = airlines[airlineToApprove].positiveReceivedVotes.add(1);
+
+        if (airlines[airlineToApprove].positiveReceivedVotes >= airlines[airlineToApprove].minRequiredVotes)
+        {
+            airlines[airlineToApprove].state = AirlineState.Registered; 
+        }
+    }
+
 
    /**
     * @dev Buy insurance for a flight

@@ -92,19 +92,21 @@ contract FlightSuretyApp {
     /*                                       UTILITY FUNCTIONS                                  */
     /********************************************************************************************/
 
-    function isOperational() 
-                            public 
-                            view 
-                            returns(bool) 
-    {
-        bool _isOperational = flightSuretyData.isOperational();
-        return _isOperational;
-    }
+    
 
     /********************************************************************************************/
     /*                                     SMART CONTRACT FUNCTIONS                             */
     /********************************************************************************************/
 
+    /**
+    * @dev This function is to submit voting to approve a given airline
+    *
+    */ 
+    function approveAirline(address airlineToApprove) 
+                                            public 
+    {
+        flightSuretyData.approveAirline(airlineToApprove, msg.sender); 
+    }
   
    /**
     * @dev Add an airline to the registration queue
@@ -117,17 +119,17 @@ contract FlightSuretyApp {
                             )
                             public
                             requireIsOperational
-                            returns(bool success, uint256 votes)
+                            returns(bool success)
     {
         bool _success; 
 
-        try flightSuretyData.registerAirline(airlineName, airlineAddress) {
+        try flightSuretyData.registerAirline(airlineName, airlineAddress, msg.sender) {
             _success = true;
         }
-        catch (bytes memory _err){
+        catch /*(bytes memory _err)*/{
             _success = false;
         }
-        return (_success, 0);
+        return (_success);
     }
 
     /**
@@ -160,7 +162,7 @@ contract FlightSuretyApp {
         try flightSuretyData.fundAirline{value: msg.value}(msg.sender) {
             _success = true;
         }
-        catch (bytes memory _err){
+        catch /*(bytes memory _err)*/{
             _success = false;
         }
         return (_success);
@@ -172,6 +174,23 @@ contract FlightSuretyApp {
                                 returns (uint256){
 
         return flightSuretyData.getContractBalance();  
+    }
+
+    function isOperational() 
+                            public 
+                            view 
+                            returns(bool) 
+    {
+        bool _isOperational = flightSuretyData.isOperational();
+        return _isOperational;
+    }
+
+    function getTotalRegisteredAirlines()
+                                external
+                                view
+                                returns(uint256){
+        
+        return flightSuretyData.getTotalRegisteredAirlines(); 
     }
 
    /**
@@ -401,11 +420,13 @@ contract FlightSuretyApp {
 // region Data Contract Interface
 
     contract FlightSuretyData{
-        function registerAirline(string memory airlineName, address airlineAddress) external {} 
+        function registerAirline(string memory airlineName, address airlineAddress, address requestor) external {} 
         function fetchAirlineStatus(address airlineAddress) external view returns(string memory name, uint256 state, bool isFunded, uint256 minRequiredVotes, uint256 positiveReceivedVotes, uint256 balance) {}
         function isOperational() public view returns(bool) {} 
         function getContractBalance() external view returns (uint256) {}
         function fundAirline(address airlineAddress) external payable {}
+        function getTotalRegisteredAirlines() external view returns(uint256){}
+        function approveAirline(address airlineToApprove, address requestorAddress) external {}
     }   
 
 // endregion

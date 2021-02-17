@@ -116,7 +116,7 @@ contract('Flight Surety Tests', async (accounts) => {
   it('(airline) can fund an airline', async () => {
     
     // ARRANGE
-    var txn; ;
+    var txn;
     var airlineStatus;
     var oldContractBalance;
     var newContractBalance;
@@ -148,8 +148,7 @@ contract('Flight Surety Tests', async (accounts) => {
 
     // ACT
     try {
-      let txn = await config.flightSuretyApp.registerAirline(newAirlineName, newAirline, {from: config.firstAirline});
-      console.log(txn); 
+      await config.flightSuretyApp.registerAirline(newAirlineName, newAirline, {from: config.firstAirline});  
     }
     catch(e) {
         console.log(e); 
@@ -172,6 +171,47 @@ contract('Flight Surety Tests', async (accounts) => {
     assert.equal(result[2], false, 'Error: New airline shows as funded but is was just created'); //Airline is funded
     assert.equal(result[5], 0, 'Error: New airline was not created'); //Airline Balance
    
+  });
+
+  it('(airline) Registration of fifth and subsequent airlines requires multi-party consensus of 50% of registered airlines', async () => {
+    // ARRANGE
+    var totalAirlinesRegistered;
+    var result; 
+    let newAirline = accounts[4];
+    let newAirlineName = 'Udacity #4'
+    const foundingAirlines = 4;
+    var minAirlinesVotes;
+
+    // ACT
+    try {
+      totalAirlinesRegistered = await config.flightSuretyApp.getTotalRegisteredAirlines.call();
+
+      if(totalAirlinesRegistered < foundingAirlines)
+      {
+        //need to registed enough airlines to surpass the founding member threshold 
+        for(let i = (foundingAirlines - totalAirlinesRegistered); i < foundingAirlines; i++)
+        {
+          await config.flightSuretyApp.registerAirline("FoundingAirline" + i, config.testAddresses[i], {from: config.firstAirline});
+        }
+      }
+
+      //Registers the first airline outside the founding airlines
+      await config.flightSuretyApp.registerAirline(newAirlineName, newAirline, {from: config.firstAirline});
+      result = await config.flightSuretyApp.fetchAirlineStatus(newAirline);    
+     
+      console.log(minAirlinesVotes); 
+    }
+    catch(e) {
+        console.log(e); 
+    }
+      
+    // ASSERT
+    assert.equal(result[0], newAirlineName, 'Error: New airline name does not match'); //name
+    assert.equal(result[1], 0, 'Error: New airline state is not correct - Expected PendingApproval'); //state
+    assert.equal(result[2], false, 'Error: New airline state does not match Registered'); //isfunded
+    assert.equal(result[3], 2, 'Error: New airline minimum required votes do not match'); //minRequiredVotes
+    assert.equal(result[4], 0, 'ErError: New airline positive received votes do not match'); //positiveReceivedVotes
+    assert.equal(result[5], 0, 'ErError: New airline balance is zero'); //balance
   });
 
 });
