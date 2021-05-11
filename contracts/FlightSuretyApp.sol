@@ -244,6 +244,23 @@ contract FlightSuretyApp {
         emit OracleRequest(index, airline, flight, timestamp);
     } 
 
+    function buyInsurance(string memory flightNumber)
+                    external
+                    payable
+                    requireIsOperational
+                    returns(bool)
+    {
+        bool _success; 
+
+        try flightSuretyData.buy{value: msg.value}(msg.sender, flightNumber) {
+            _success = true;
+        }
+        catch /*(bytes memory _err)*/{
+            _success = false;
+        }
+        return (_success);
+    } 
+
 
 // region ORACLE MANAGEMENT
 
@@ -427,6 +444,9 @@ contract FlightSuretyApp {
         function fundAirline(address airlineAddress) external payable {}
         function getTotalRegisteredAirlines() external view returns(uint256){}
         function approveAirline(address airlineToApprove, address requestorAddress) external {}
+        function buy(address passengerAddress, string memory flightNumber) external payable{}
+        function creditInsurees(string memory flightNumber) external {}
+        function pay (address toAddress) external payable {} 
     }   
 
 // endregion

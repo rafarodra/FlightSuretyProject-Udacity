@@ -19,6 +19,7 @@ contract FlightSuretyData {
     uint8 private constant FOUNDING_AIRLINES = 4;
     uint256 private constant MEMBERSHIP_FEE = 10 ether;
 
+
     enum AirlineState 
     { 
         PendingApproval,  // 0
@@ -40,23 +41,27 @@ contract FlightSuretyData {
     }
 
     struct FlightInsurance{ 
+        uint256 totalInsurees;
+        mapping(uint256 => address) passengerAddresses; 
         mapping(address => uint256) insurancePaid; 
-    }
+    } 
 
     mapping(address => Airline) private airlines;
-    mapping(string => FlightInsurance) private insurances; //string key = flight name
+    mapping(string => FlightInsurance) private flightInsurances; //string key = flight name/id
     mapping(address => Passenger) private passengers; 
-
 
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
+    event dummyEvent(string text); 
+
     event AirlineRegistered(string airlineName);
     event OperationalStatusChanged(bool status, address requestor);
     event AirlineFunded(address airline, uint256 amount, uint256 oldBalace, uint256 newBalance); 
-    event InsuranceBought(address passenger, uint256 amount, uint256 oldBalace, uint256 newBalance);
-    event dummyEvent(string text); 
-
+    event InsuranceBought(address passenger, uint256 amount, uint256 oldBalace, uint256 newBalance, uint256 totalInsurees, string airline);
+    event InsuranceCredited(address passengerAddress, uint256 amount, uint256 newBalance, uint256 totalInsurees, string airline);
+    event InsuranceWithdrawn(address toAddress, uint256 amount, uint256 newBalance);
+    
     /**
     * @dev Constructor
     *      The deploying account becomes contractOwner
@@ -283,16 +288,29 @@ contract FlightSuretyData {
     */   
     function buy
                             (       
-                                address passenger                      
+                                address passengerAddress,
+                                string memory flightNumber
                             )
                             external
                             payable
                             requireIsOperational
     {
-        uint256 oldBalance = airlines[airlineAddress].balance;  
-        airlines[airlineAddress].balance = airlines[airlineAddress].balance.add(msg.value);
-        airlines[airlineAddress].isFunded = true;        
-        emit InsuranceBought(passenger, msg.value, oldBalance, airlines[airlineAddress].balance);
+        //TODO: Add validation of top 1 Eth
+        
+        uint256 oldBalance = passengers[passengerAddress].balance;
+        passengers[passengerAddress].balance = passengers[passengerAddress].balance.add(msg.value);
+
+        uint256 newAddressIndex = flightInsurances[flightNumber].totalInsurees; 
+        flightInsurances[flightNumber].passengerAddresses[newAddressIndex] = passengerAddress;
+        flightInsurances[flightNumber].insurancePaid[passengerAddress] = flightInsurances[flightNumber].insurancePaid[passengerAddress].add(msg.value); 
+        flightInsurances[flightNumber].totalInsurees = newAddressIndex.add(1);
+
+        emit InsuranceBought(passengerAddress, 
+                            msg.value, 
+                            oldBalance, 
+                            passengers[passengerAddress].balance, 
+                            flightInsurances[flightNumber].totalInsurees, 
+                            flightNumber);
     }
 
     /**
@@ -300,10 +318,36 @@ contract FlightSuretyData {
     */
     function creditInsurees
                                 (
+                                    string memory flightNumber
                                 )
                                 external
-                                pure
+                                requireIsOperational
     {
+        uint256 _addressIndex = flightInsurances[flightNumber].totalInsurees;
+        address _passengerAddress; 
+        uint256 _insurancePaid;
+        uint256 _insuranceWithdrawableAmount;
+
+        for(uint256 i=0; i<_addressIndex; i++){
+
+            //cleans the insurance data
+            _passengerAddress = flightInsurances[flightNumber].passengerAddresses[i];
+            _insurancePaid = flightInsurances[flightNumber].insurancePaid[_passengerAddress]; 
+            flightInsurances[flightNumber].insurancePaid[_passengerAddress] = _insurancePaid.sub(_insurancePaid); 
+
+            //moves the payout to the withdrawable balance
+            passengers[_passengerAddress].balance = passengers[_passengerAddress].balance.sub(_insurancePaid);
+            passengers[_passengerAddress].withdrawableBalance = passengers[_passengerAddress].withdrawableBalance.mul(150) / 100;     
+
+            emit InsuranceCredited(_passengerAddress, 
+                            passengers[_passengerAddress].withdrawableBalance, 
+                            passengers[_passengerAddress].balance, 
+                            _addressIndex, //total insurees paid out
+                            flightNumber);       
+        }
+
+        //resets the mapping 
+        flightInsurances[flightNumber].totalInsurees = 0; 
     }
     
 
@@ -312,13 +356,22 @@ contract FlightSuretyData {
      *
     */
     function pay
-                            (
+                            (address toAddress
                             )
                             external
-                            pure
+                            payable
+                            requireIsOperational
     {
-    }
+        uint withdrawableBalance = passengers[toAddress].balance; 
+        passengers[toAddress].balance = 0; 
 
+        (bool sent, bytes memory data) = toAddress.call{value: withdrawableBalance}("");
+        require(sent, "Failed to send Ether");
+
+        emit InsuranceWithdrawn(toAddress, 
+                            withdrawableBalance, 
+                            passengers[toAddress].balance);
+    }
    
     function getFlightKey
                         (
