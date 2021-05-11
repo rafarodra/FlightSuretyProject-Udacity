@@ -34,7 +34,19 @@ contract FlightSuretyData {
         uint256 balance; 
     }
 
+    struct Passenger{
+        uint256 balance;
+        uint256 withdrawableBalance;
+    }
+
+    struct FlightInsurance{ 
+        mapping(address => uint256) insurancePaid; 
+    }
+
     mapping(address => Airline) private airlines;
+    mapping(string => FlightInsurance) private insurances; //string key = flight name
+    mapping(address => Passenger) private passengers; 
+
 
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
@@ -42,6 +54,7 @@ contract FlightSuretyData {
     event AirlineRegistered(string airlineName);
     event OperationalStatusChanged(bool status, address requestor);
     event AirlineFunded(address airline, uint256 amount, uint256 oldBalace, uint256 newBalance); 
+    event InsuranceBought(address passenger, uint256 amount, uint256 oldBalace, uint256 newBalance);
     event dummyEvent(string text); 
 
     /**
@@ -269,12 +282,17 @@ contract FlightSuretyData {
     *
     */   
     function buy
-                            (                             
+                            (       
+                                address passenger                      
                             )
                             external
                             payable
+                            requireIsOperational
     {
-
+        uint256 oldBalance = airlines[airlineAddress].balance;  
+        airlines[airlineAddress].balance = airlines[airlineAddress].balance.add(msg.value);
+        airlines[airlineAddress].isFunded = true;        
+        emit InsuranceBought(passenger, msg.value, oldBalance, airlines[airlineAddress].balance);
     }
 
     /**
